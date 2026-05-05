@@ -1,43 +1,125 @@
-import os
+import requests
 import pandas as pd
+import os
 from datetime import datetime
 
-DATA_DIR = "data"
+ETF_LIST = ["0050", "0056", "00878"]
 
-def fetch_etf_nav(etf_code: str):
-    """
-    TODO: 你原本的 requests + parsing 保留
-    回傳格式：
-    [
-        {"date": "2026-05-05", "nav": 100.0}
-    ]
-    """
-    # === 這裡用假資料示範 ===
-    today = datetime.today().strftime("%Y-%m-%d")
-    return [{"date": today, "nav": 100.0}]
+HEADERS = {
+    "User-Agent": "Mozilla/5.0"
+}
 
 
-def update_etf_file(etf_code: str):
-    os.makedirs(DATA_DIR, exist_ok=True)
+# =========================
+# 來源1：TWSE（主）
+# =========================
+def get_nav_twse(etf_id):
+    url = f"https://www.twse.com.tw/rwd/zh/ETF/etfNav?response=json&stockNo={etf_id}"
 
-    path = f"{DATA_DIR}/{etf_code}.csv"
+    try:
+        res = requests.get(url, headers=HEADERS, timeout=10)
+        data = res.json()
 
-    new_data = pd.DataFrame(fetch_etf_nav(etf_code))
+        if "data" in data and len(data["data"]) > 0:
+            latest = data["data"][0]
 
-    if os.path.exists(path):
-        old = pd.read_csv(path)
-        df = pd.concat([old, new_data])
-        df = df.drop_duplicates(subset=["date"], keep="last")
-        df = df.sort_values("date")
+            nav = float(latest[1])
+
+            if 5 < nav < 500:
+                return nav
+
+    except Exception as e:
+        print(f"TWSE FAIL {etf_id}: {e}")
+
+    return None
+
+
+# =========================
+# 來源2：Yahoo（備援）
+# =========================
+def get_nav_yahoo(etf_id):
+    try:
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{etf_id}.TW"
+        res = requests.get(url, headers=HEADERS, timeout=10)
+        data = res.json()
+
+        price = data["chart"]["result"][0]["meta"]["regularMarketPrice"]
+
+        if 5 < price < 500:
+            return float(price)
+
+    except Exception as e:
+        print(f"YAHOO FAIL {etf_id}: {e}")
+
+    return None
+
+
+# =========================
+# 多來源容錯
+# =========================
+def get_nav(etf_id):
+    nav = get_nav_twse(etf_id)
+
+    if nav is None:
+        nav = get_nav_yahoo(etf_id)
+
+    if nav is None:
+        print(f"❌ ALL FAIL {etf_id}")
+
+    return nav
+
+
+# =========================
+# CSV 更新（防重複）
+# =========================
+def update_csv(etf_id, nav):
+    if nav is None:
+        return False
+
+    os.makedirs("data", exist_ok=True)
+
+    file_path = f"data/{etf_id}.csv"
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    new_row = pd.DataFrame([[today, nav]], columns=["date", "nav"])
+
+    if os.path.exists(file_path):
+        df = pd.read_csv(file_path)
+
+        # 若今日已存在 → 不更新
+        if today in df["date"].values:
+            print(f"⏩ SKIP {etf_id} (already updated)")
+            return False
+
+        df = pd.concat([df, new_row])
     else:
-        df = new_data
+        df = new_row
 
-    df.to_csv(path, index=False)
-    print(f"UPDATED: {path}")
+    df.to_csv(file_path, index=False)
+
+    print(f"✅ UPDATE {etf_id} NAV={nav}")
+    return True
+
+
+# =========================
+# 主程式
+# =========================
+def main():
+    changed = False
+
+    for etf in ETF_LIST:
+        nav = get_nav(etf)
+        print(f"{etf} -> {nav}")
+
+        if update_csv(etf, nav):
+            changed = True
+
+    return changed
 
 
 if __name__ == "__main__":
-    etfs = ["0050", "0056", "00878"]
+    changed = main()
 
-    for etf in etfs:
-        update_etf_file(etf)
+    # 寫入 flag 給 GitHub Actions 判斷
+    with open("changed.flag", "w") as f:
+        f.write("true" if changed else "false")
