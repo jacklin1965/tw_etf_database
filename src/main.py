@@ -1,67 +1,72 @@
 import os
+import pandas as pd
 from datetime import datetime
 
+from config import ETF_LIST, DATA_DIR
 from fetcher import get_price
 from validator import validate_nav
-from storage import get_last_nav, append_csv
-
-# ===== ETF清單 =====
-ETF_LIST = [
-    "0050",
-    "0056",
-    "006208",
-    "00713",
-    "00878",
-    "00919",
-    "00929",
-    "00940"
-]
-
-DATA_DIR = "data"
 
 
-def main():
-    today = datetime.now().strftime("%Y-%m-%d")
-
+def run():
     os.makedirs(DATA_DIR, exist_ok=True)
 
     changed = False
 
     for code in ETF_LIST:
-        print(f"\n=== {code} ===")
+        file_path = f"{DATA_DIR}/{code}.csv"
 
-        # ===== 1️⃣ 抓資料 =====
-        nav = get_price(code)
+        # =========================
+        # 讀取舊資料
+        # =========================
+        if os.path.exists(file_path):
+            df = pd.read_csv(file_path)
+            last_nav = df.iloc[-1]["nav"]
+        else:
+            df = pd.DataFrame(columns=["date", "nav"])
+            last_nav = None
 
-        if nav is None:
-            print(f"[SKIP] {code} no data")
+        # =========================
+        # 抓新價格
+        # =========================
+        new_nav, source = get_price(code)
+
+        if new_nav is None:
+            print(f"❌ ALL FAIL {code}")
             continue
 
-        # ===== 2️⃣ 讀取舊資料 =====
-        last_nav = get_last_nav(code)
+        print(f"{code} -> {new_nav} ({source})")
 
-        print(f"{code} -> {nav} (last: {last_nav})")
-
-        # ===== 3️⃣ 驗證 =====
-        if not validate_nav(nav, last_nav):
-            print(f"[SKIP] {code} invalid NAV")
+        # =========================
+        # 驗證
+        # =========================
+        if not validate_nav(new_nav, last_nav):
+            print(f"⛔ SKIP {code} (invalid)")
             continue
 
-        # ===== 4️⃣ 避免重複寫入 =====
-        if last_nav is not None and abs(nav - last_nav) < 1e-6:
-            print(f"[SKIP] {code} no change")
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        # =========================
+        # 避免同一天重複寫入
+        # =========================
+        if len(df) > 0 and df.iloc[-1]["date"] == today:
+            print(f"⏩ SKIP {code} (already updated)")
             continue
 
-        # ===== 5️⃣ 寫入CSV =====
-        append_csv(code, today, nav)
-        print(f"[UPDATE] {code} saved")
+        # =========================
+        # 寫入
+        # =========================
+        new_row = pd.DataFrame([[today, new_nav]], columns=["date", "nav"])
+        df = pd.concat([df, new_row], ignore_index=True)
 
+        df.to_csv(file_path, index=False)
         changed = True
 
-    # ===== GitHub Actions用 =====
+    # =========================
+    # 給 GitHub Actions 用
+    # =========================
     with open("changed.flag", "w") as f:
         f.write("true" if changed else "false")
 
 
 if __name__ == "__main__":
-    main()
+    run()
