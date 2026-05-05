@@ -1,127 +1,74 @@
 import requests
-import time
-import random
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-}
-
-TIMEOUT = 10
-RETRY = 3
-
+from bs4 import BeautifulSoup
+from config import HEADERS
 
 # =========================
-# 主入口（智能來源選擇）
-# =========================
-def get_price(code):
-    """
-    Source Priority:
-    1. TWSE (官方)
-    2. Yahoo (穩定)
-    3. CMoney (備援)
-    """
-
-    sources = [
-        ("TWSE", fetch_twse),
-        ("YAHOO", fetch_yahoo),
-        ("CMONEY", fetch_cmoney)
-    ]
-
-    for name, func in sources:
-        price = safe_fetch(func, code, name)
-        if price:
-            return price
-
-    print(f"[ERROR] {code} all sources failed")
-    return None
-
-
-# =========================
-# Retry + 防擋
-# =========================
-def safe_fetch(func, code, source):
-    for i in range(RETRY):
-        try:
-            price = func(code)
-
-            if price and price > 0:
-                print(f"[SUCCESS] {code} {source} -> {price}")
-                return price
-
-        except Exception as e:
-            print(f"[{source} FAIL] {code} attempt {i+1}: {e}")
-
-        sleep_random()
-
-    return None
-
-
-# =========================
-# TWSE（最快但會擋）
+# TWSE
 # =========================
 def fetch_twse(code):
-    url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_{code}.tw"
+    try:
+        url = f"https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&stockNo={code}"
+        r = requests.get(url, headers=HEADERS, timeout=10)
 
-    res = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+        data = r.json()
 
-    if "html" in res.text.lower():
-        raise Exception("Blocked")
+        # 取最新收盤價
+        price = float(data["data"][-1][6])
+        return price, "TWSE"
 
-    data = res.json()
-
-    if not data.get("msgArray"):
-        raise Exception("Empty")
-
-    price = data["msgArray"][0].get("z")
-
-    if price in ["-", None]:
-        raise Exception("No price")
-
-    return float(price)
+    except Exception as e:
+        print(f"TWSE FAIL {code}: {e}")
+        return None, None
 
 
 # =========================
-# Yahoo（最穩）
+# Yahoo
 # =========================
 def fetch_yahoo(code):
-    url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={code}.TW"
+    try:
+        url = f"https://tw.stock.yahoo.com/quote/{code}"
+        r = requests.get(url, headers=HEADERS, timeout=10)
 
-    res = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-    data = res.json()
+        soup = BeautifulSoup(r.text, "html.parser")
 
-    result = data["quoteResponse"]["result"]
+        price_tag = soup.find("fin-streamer", {"data-field": "regularMarketPrice"})
+        price = float(price_tag.text.replace(",", ""))
 
-    if not result:
-        raise Exception("No result")
+        return price, "Yahoo"
 
-    return float(result[0]["regularMarketPrice"])
+    except Exception as e:
+        print(f"Yahoo FAIL {code}: {e}")
+        return None, None
 
 
 # =========================
-# CMoney（備援）
+# CMoney
 # =========================
 def fetch_cmoney(code):
-    url = f"https://www.cmoney.tw/finance/etf/{code}"
+    try:
+        url = f"https://www.cmoney.tw/etf/{code}"
+        r = requests.get(url, headers=HEADERS, timeout=10)
 
-    res = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+        soup = BeautifulSoup(r.text, "html.parser")
 
-    if res.status_code != 200:
-        raise Exception("HTTP error")
+        price_tag = soup.find("span", {"id": "lastPrice"})
+        price = float(price_tag.text.strip())
 
-    html = res.text
+        return price, "CMoney"
 
-    # 簡單解析（避免 heavy parser）
-    import re
-    match = re.search(r'"closePrice":([0-9\.]+)', html)
-
-    if not match:
-        raise Exception("Parse fail")
-
-    return float(match.group(1))
+    except Exception as e:
+        print(f"CMoney FAIL {code}: {e}")
+        return None, None
 
 
 # =========================
-# 防封鎖
+# 主控制（自動切換）
 # =========================
-def sleep_random():
-    time.sleep(random.uniform(1, 2))
+def get_price(code):
+    for fetch_func in [fetch_twse, fetch_yahoo, fetch_cmoney]:
+        price, source = fetch_func(code)
+
+        if price is not None:
+            return price, source
+
+    return None, None
