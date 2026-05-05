@@ -8,7 +8,6 @@ def validate_nav(new_nav, last_nav):
     change = abs(new_nav - last_nav) / last_nav
 
     if change > 0.1:
-        print(f"⚠️ 異常波動: {last_nav} -> {new_nav}")
         return False
 
     return True
