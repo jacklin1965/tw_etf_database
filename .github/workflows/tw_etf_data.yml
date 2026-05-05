@@ -6,22 +6,24 @@ on:
     - cron: '30 7 * * 1-5'
   workflow_dispatch:
 
+permissions:
+  contents: write   # ⭐ 必加（解決128核心）
+
 jobs:
   run:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4   # ✅ 升級
+        uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v5   # ✅ 升級
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install packages
-        run: |
-          pip install pandas
+        run: pip install pandas
 
       - name: Run script
         run: python tw_etf_data.py
@@ -31,5 +33,5 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add *.csv
-          git commit -m "update data" || echo "no change"
+          git commit -m "update etf data" || echo "no changes"
           git push
