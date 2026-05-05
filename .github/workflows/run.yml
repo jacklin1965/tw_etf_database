@@ -1,8 +1,8 @@
-name: ETF DB Update
+name: Update ETF Data
 
 on:
   schedule:
-    - cron: "0 10 * * 1-5"
+    - cron: "0 10 * * *"
   workflow_dispatch:
 
 jobs:
@@ -10,20 +10,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
 
-      - run: pip install -r requirements.txt
+    - run: pip install -r requirements.txt
 
-      - run: python src/main.py
+    - run: python src/main.py
 
-      - name: Commit DB
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add data/etf.db
-          git commit -m "update etf db" || echo "no changes"
-          git push
+    - name: Check changes
+      id: check
+      run: |
+        if git status --porcelain | grep .; then
+          echo "changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "changed=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Commit & Push
+      if: steps.check.outputs.changed == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add data/ charts/
+        git commit -m "update etf data"
+        git push
