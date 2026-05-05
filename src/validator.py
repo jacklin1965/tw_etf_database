@@ -1,8 +1,9 @@
 def validate_nav(new_nav, last_nav=None):
     """
-    機構級驗證：
-    1. 基本數值檢查
-    2. 異常波動檢查
+    機構級 NAV 驗證：
+    1. 型別 / 數值檢查
+    2. 第一筆資料允許
+    3. 異常波動過濾（>10%）
     """
 
     # ===== 1️⃣ 基本檢查 =====
@@ -17,7 +18,7 @@ def validate_nav(new_nav, last_nav=None):
     if new_nav <= 0:
         return False
 
-    # ===== 2️⃣ 第一筆資料直接過 =====
+    # ===== 2️⃣ 第一筆資料直接通過 =====
     if last_nav is None:
         return True
 
@@ -26,10 +27,13 @@ def validate_nav(new_nav, last_nav=None):
     except:
         return False
 
-    # ===== 3️⃣ 異常波動檢查 =====
+    if last_nav <= 0:
+        return False
+
+    # ===== 3️⃣ 波動檢查 =====
     change = abs(new_nav - last_nav) / last_nav
 
-    # ETF 日波動 >10% 幾乎不可能（除非資料錯）
+    # ETF 單日波動 >10% 幾乎不可能
     if change > 0.1:
         print(f"[ANOMALY] NAV jump too large: {last_nav} -> {new_nav}")
         return False
