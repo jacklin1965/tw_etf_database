@@ -1,3 +1,7 @@
+DATA_DIR = "data"
+CHART_DIR = "charts"
+DB_PATH = f"{DATA_DIR}/etf.db"
+
 ETF_LIST = [
     {"code": "0050", "name": "元大台灣50"},
     {"code": "0056", "name": "元大高股息"},
@@ -8,9 +12,6 @@ ETF_LIST = [
     {"code": "00929", "name": "復華台灣科技優息"},
     {"code": "00940", "name": "元大台灣價值高息"},
 ]
-
-DATA_DIR = "data"
-DB_PATH = f"{DATA_DIR}/etf.db"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0"
