@@ -10,8 +10,8 @@ changed = False
 for etf in ETF_LIST:
     code = etf["code"]
 
-    price = get_price(code)
-    if price is None:
+    new_nav = get_price(code)
+    if new_nav is None:
         continue
 
     file_path = f"data/{code}.csv"
@@ -20,12 +20,12 @@ for etf in ETF_LIST:
     if os.path.exists(file_path):
         df = pd.read_csv(file_path)
         if not df.empty:
-            old_price = df.iloc[-1]['nav']
+            last_nav = df.iloc[-1]['nav']
 
     if not validate_nav(new_nav, last_nav):
         continue
 
-    df, updated = save(code, price)
+    df, updated = save(code, new_nav)
     df.to_csv(file_path, index=False)
 
     if updated:
