@@ -1,4 +1,4 @@
-name: ETF Update
+name: ETF Fetch Databae
 
 on:
   schedule:
@@ -20,7 +20,7 @@ jobs:
       run: pip install pandas requests lxml beautifulsoup4 html5lib
 
     - name: Run ETF pipeline
-      run: python src/tw_etf_data.py
+      run: python tw_etf_data.py
 
     - name: Commit changes
       run: |
