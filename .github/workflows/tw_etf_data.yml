@@ -23,9 +23,19 @@ jobs:
       run: python tw_etf_data.py
 
     - name: Commit changes
+      id: check
       run: |
-        git config user.email "action@github.com"
-        git config user.name "GitHub Action"
+        if grep -q "true" changed.flag; then
+          echo "changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "changed=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Commit & Push
+      if: steps.check.outputs.changed == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
         git add data/
-        git diff --cached --quiet || git commit -m "update ETF data"
+        git commit -m "update etf data"
         git push
