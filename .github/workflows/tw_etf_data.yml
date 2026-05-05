@@ -1,8 +1,8 @@
-name: ETF Fetch Databae
+name: Update ETF Data
 
 on:
   schedule:
-    - cron: "0 * * * *"   # 每小時
+    - cron: "0 10 * * *"   # 台灣18:00
   workflow_dispatch:
 
 jobs:
@@ -10,19 +10,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v5
+    - name: Setup Python
+      uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: 3.11
 
     - name: Install deps
       run: pip install pandas requests lxml beautifulsoup4 html5lib
 
-    - name: Run ETF pipeline
-      run: python tw_etf_data.py
+    - name: Run ETF fetch
+      run: python src/main.py
 
-    - name: Commit changes
+    # ✅ 這步只是「判斷」
+    - name: Check if data changed
       id: check
       run: |
         if grep -q "true" changed.flag; then
@@ -31,6 +34,7 @@ jobs:
           echo "changed=false" >> $GITHUB_OUTPUT
         fi
 
+    # ✅ 這步才是真的 commit
     - name: Commit & Push
       if: steps.check.outputs.changed == 'true'
       run: |
