@@ -1,32 +1,78 @@
+import sqlite3
 import os
-import pandas as pd
+from config import DB_PATH, DATA_DIR
 
-DATA_DIR = "data"
+
+def init_db():
+    os.makedirs(DATA_DIR, exist_ok=True)
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # ETF基本資料
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS etf_info (
+        code TEXT PRIMARY KEY,
+        name TEXT
+    )
+    """)
+
+    # NAV資料
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS etf_nav (
+        date TEXT,
+        code TEXT,
+        nav REAL,
+        source TEXT,
+        change_pct REAL,
+        valid INTEGER,
+        PRIMARY KEY (date, code)
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+def insert_etf_info(code, name):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    c.execute("""
+    INSERT OR IGNORE INTO etf_info (code, name)
+    VALUES (?, ?)
+    """, (code, name))
+
+    conn.commit()
+    conn.close()
 
 
 def get_last_nav(code):
-    path = f"{DATA_DIR}/{code}.csv"
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
 
-    if not os.path.exists(path):
-        return None
+    c.execute("""
+    SELECT nav FROM etf_nav
+    WHERE code = ?
+    ORDER BY date DESC
+    LIMIT 1
+    """, (code,))
 
-    df = pd.read_csv(path)
+    row = c.fetchone()
+    conn.close()
 
-    if df.empty:
-        return None
-
-    return float(df.iloc[-1]["nav"])
+    return row[0] if row else None
 
 
-def append_csv(code, date, nav):
-    path = f"{DATA_DIR}/{code}.csv"
+def insert_nav(date, code, nav, source, change_pct, valid):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
 
-    new_row = {"date": date, "nav": nav}
+    c.execute("""
+    INSERT OR IGNORE INTO etf_nav
+    (date, code, nav, source, change_pct, valid)
+    VALUES (?, ?, ?, ?, ?, ?)
+    """, (date, code, nav, source, change_pct, int(valid)))
 
-    if os.path.exists(path):
-        df = pd.read_csv(path)
-        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-    else:
-        df = pd.DataFrame([new_row])
-
-    df.to_csv(path, index=False)
+    conn.commit()
+    conn.close()
