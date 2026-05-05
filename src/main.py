@@ -15,14 +15,14 @@ for etf in ETF_LIST:
         continue
 
     file_path = f"data/{code}.csv"
-    old_price = None
+    last_nav = None
 
     if os.path.exists(file_path):
         df = pd.read_csv(file_path)
         if not df.empty:
             old_price = df.iloc[-1]['nav']
 
-    if not validate_nav(price, last_nav):
+    if not validate_nav(new_nav, last_nav):
         continue
 
     df, updated = save(code, price)
