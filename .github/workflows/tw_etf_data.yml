@@ -24,7 +24,7 @@ jobs:
           pip install pandas
 
       - name: Run script
-        run: python etf.py
+        run: python tw_etf_data.py
 
       - name: Commit data
         run: |
