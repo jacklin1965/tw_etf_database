@@ -1,38 +1,31 @@
-name: ETF Auto Fetch
+name: ETF Update
 
 on:
   schedule:
-    - cron: '30 0 * * 1-5'
-    - cron: '30 7 * * 1-5'
+    - cron: "0 * * * *"   # 每小時
   workflow_dispatch:
-
-permissions:
-  contents: write   # ⭐ 必加（解決128核心）
 
 jobs:
   run:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
 
-      - name: Install packages
-        run: pip install pandas lxml beautifulsoup4 html5lib requests
+    - name: Install deps
+      run: pip install pandas requests lxml beautifulsoup4 html5lib
 
-      - name: Run script
-        run: python tw_etf_data.py
+    - name: Run ETF pipeline
+      run: python src/tw_etf_data.py
 
-      - name: Commit data
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"    
-          git status
-          git add data/
-          git commit -m "update etf data" || echo "no changes"
-          git push
+    - name: Commit changes
+      run: |
+        git config user.email "action@github.com"
+        git config user.name "GitHub Action"
+        git add data/
+        git diff --cached --quiet || git commit -m "update ETF data"
+        git push
