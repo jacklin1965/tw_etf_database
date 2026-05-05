@@ -7,6 +7,8 @@ HEADERS = {
     "Accept": "application/json"
 }
 
+requests.get(url, headers=headers, timeout=10)
+
 def fetch_with_retry(url):
     for i in range(3):
         try:
