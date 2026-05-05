@@ -1,7 +1,7 @@
 from config import ETF_LIST
 from fetcher import get_price
 from storage import save
-from validator import validate_price
+from validator import validate_nav
 import pandas as pd
 import os
 
@@ -22,7 +22,7 @@ for etf in ETF_LIST:
         if not df.empty:
             old_price = df.iloc[-1]['nav']
 
-    if not validate_price(price, old_price):
+    if not validate_nav(price, last_nav):
         continue
 
     df, updated = save(code, price)
