@@ -23,7 +23,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install packages
-        run: pip install pandas
+        run: pip install pandas lxml html5lib requests
 
       - name: Run script
         run: python tw_etf_data.py
