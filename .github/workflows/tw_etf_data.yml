@@ -31,7 +31,8 @@ jobs:
       - name: Commit data
         run: |
           git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add *.csv
+          git config --local user.name "GitHub Action"    
+          git status
+          git add data/
           git commit -m "update etf data" || echo "no changes"
           git push
