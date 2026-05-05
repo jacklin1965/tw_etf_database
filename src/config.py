@@ -8,3 +8,9 @@ ETF_LIST = [
     {"code": "00713", "name": "元大台灣高股息低波動"},
     {"code": "00940", "name": "元大台灣價值高息"},
 ]
+
+DATA_DIR = "data"
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0"
+}
