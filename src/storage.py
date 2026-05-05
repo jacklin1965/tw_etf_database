@@ -9,7 +9,6 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    # ETF基本資料
     c.execute("""
     CREATE TABLE IF NOT EXISTS etf_info (
         code TEXT PRIMARY KEY,
@@ -17,7 +16,6 @@ def init_db():
     )
     """)
 
-    # NAV資料
     c.execute("""
     CREATE TABLE IF NOT EXISTS etf_nav (
         date TEXT,
@@ -26,7 +24,7 @@ def init_db():
         source TEXT,
         change_pct REAL,
         valid INTEGER,
-        PRIMARY KEY (date, code)
+        PRIMARY KEY(date, code)
     )
     """)
 
@@ -53,9 +51,8 @@ def get_last_nav(code):
 
     c.execute("""
     SELECT nav FROM etf_nav
-    WHERE code = ?
-    ORDER BY date DESC
-    LIMIT 1
+    WHERE code=?
+    ORDER BY date DESC LIMIT 1
     """, (code,))
 
     row = c.fetchone()
@@ -69,8 +66,7 @@ def insert_nav(date, code, nav, source, change_pct, valid):
     c = conn.cursor()
 
     c.execute("""
-    INSERT OR IGNORE INTO etf_nav
-    (date, code, nav, source, change_pct, valid)
+    INSERT OR REPLACE INTO etf_nav
     VALUES (?, ?, ?, ?, ?, ?)
     """, (date, code, nav, source, change_pct, int(valid)))
 
